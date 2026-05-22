@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Medical Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"
+    />
+</head>
+<body>
+    <main class="app-shell">
+        <section class="chat-card">
+            <header class="chat-header">
+                <div class="brand">
+                    <div class="brand-icon">
+                        <i class="fa-solid fa-stethoscope"></i>
+                    </div>
+                    <div>
+                        <h1>Medical Chatbot</h1>
+                        <p>Your AI assistant for medical document-based questions</p>
+                    </div>
+                </div>
+                <div class="status-badge">
+                    <span class="status-dot"></span>
+                    Online
+                </div>
+            </header>
+
+            <section class="chat-intro">
+                <h2>How can I help you today?</h2>
+                <p>
+                    Ask questions based on your uploaded medical knowledge base.
+                    For example: symptoms, medicines, precautions, or disease-related queries.
+                </p>
+            </section>
+
+            <section id="chatContainer" class="chat-body" aria-live="polite" aria-label="Chat messages">
+                <div class="message bot">
+                    <div class="avatar">
+                        <i class="fa-solid fa-user-doctor"></i>
+                    </div>
+                    <div class="bubble">
+                        Hello! I am your medical assistant. Ask me anything from the knowledge base.
+                        <span class="time" id="initialTime"></span>
+                    </div>
+                </div>
+            </section>
+
+            <form id="messageArea" class="chat-form">
+                <label for="text" class="sr-only">Type your medical question</label>
+                <div class="input-wrap">
+                    <i class="fa-regular fa-pen-to-square input-icon"></i>
+                    <input
+                        type="text"
+                        id="text"
+                        name="msg"
+                        placeholder="Type your question here..."
+                        autocomplete="off"
+                        required
+                    />
+                    <button type="submit" id="send">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        <span>Send</span>
+                    </button>
+                </div>
+            </form>
+        </section>
+    </main>
+
+    <script>
+        const chatContainer = document.getElementById("chatContainer");
+        const messageForm = document.getElementById("messageArea");
+        const textInput = document.getElementById("text");
+        const initialTime = document.getElementById("initialTime");
+
+        function getTime() {
+            const now = new Date();
+            return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        initialTime.textContent = getTime();
+
+        function appendMessage(message, sender) {
+            const wrapper = document.createElement("div");
+            wrapper.className = `message ${sender}`;
+
+            const avatar = document.createElement("div");
+            avatar.className = "avatar";
+            avatar.innerHTML = sender === "user"
+                ? '<i class="fa-solid fa-user"></i>'
+                : '<i class="fa-solid fa-user-doctor"></i>';
+
+            const bubble = document.createElement("div");
+            bubble.className = "bubble";
+            bubble.textContent = message;
+
+            const time = document.createElement("span");
+            time.className = "time";
+            time.textContent = getTime();
+
+            bubble.appendChild(time);
+            wrapper.appendChild(avatar);
+            wrapper.appendChild(bubble);
+            chatContainer.appendChild(wrapper);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function appendTyping() {
+            const wrapper = document.createElement("div");
+            wrapper.className = "message bot";
+            wrapper.id = "typingIndicator";
+            wrapper.innerHTML = `
+                <div class="avatar">
+                    <i class="fa-solid fa-user-doctor"></i>
+                </div>
+                <div class="bubble typing">
+                    <span></span><span></span><span></span>
+                </div>
+            `;
+            chatContainer.appendChild(wrapper);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function removeTyping() {
+            const typing = document.getElementById("typingIndicator");
+            if (typing) typing.remove();
+        }
+
+        messageForm.addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const rawText = textInput.value.trim();
+            if (!rawText) return;
+
+            appendMessage(rawText, "user");
+            textInput.value = "";
+            appendTyping();
+
+            try {
+                const response = await fetch("/get", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded"
+                    },
+                    body: new URLSearchParams({ msg: rawText })
+                });
+
+                const data = await response.text();
+                removeTyping();
+                appendMessage(data, "bot");
+            } catch (error) {
+                removeTyping();
+                appendMessage("Sorry, something went wrong while connecting to the server.", "bot");
+            }
+        });
+    </script>
+</body>
+</html>
